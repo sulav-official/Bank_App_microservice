@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  service-discovery:
+    image: service-discovery:latest
+    container_name: service-discovery
+    ports:
+      - "8761:8761"
+    networks:
+      - bank-network
+
+  loan-service:
+    image: loan-service:latest
+    container_name: loan-service
+    ports:
+      - "8082:8082"
+    environment:
+      EUREKA_SERVER: service-discovery
+      EUREKA_SERVER_PORT: 8761
+      SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/loan_db
+    depends_on:
+      - mongo
+    networks:
+      - bank-network
+
+  card-service:
+    image: card-service:latest
+    container_name: card-service
+    ports:
+      - "8083:8083"
+    environment:
+      EUREKA_SERVER: service-discovery
+      EUREKA_SERVER_PORT: 8761
+      SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/card_db
+    depends_on:
+      - mongo
+    networks:
+      - bank-network
+
+  account-service:
+    image: account-service:latest
+    container_name: account-service
+    ports:
+      - "8089:8089"
+    environment:
+      SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/account_db
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/account_db
+      SPRING_DATASOURCE_USERNAME: root
+      MY_SQL_DB_PASSWORD: example
+      EUREKA_SERVER: service-discovery
+      EUREKA_SERVER_PORT: 8761
+    depends_on:
+      - mongo
+      - mysql
+    networks:
+      - bank-network
+
+  bank-api-gateway:
+    image: bank-api-gateway:latest
+    container_name: bank-api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      EUREKA_SERVER: service-discovery
+      EUREKA_SERVER_PORT: 8761
+#      EUREKA_CLIENT_SERVICE_URL_DEFAULT_ZONE: http://service-discovery:8761/eureka
+    depends_on:
+      - service-discovery
+      - loan-service
+      - card-service
+      - account-service
+    networks:
+      - bank-network
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: example
+
+    ports:
+      - "3306:3306"
+    networks:
+      - bank-network
+
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    networks:
+      - bank-network
+
+  mongo-express:
+    image: mongo-express
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongo
+    depends_on:
+      - mongo
+    networks:
+      - bank-network
+
+
+networks:
+  bank-network:
+    driver: bridge
